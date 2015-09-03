@@ -660,12 +660,3 @@ Usage in tests:
 ```rust
 assert_err!(File::open(&path, "w-"), "unable to create file");
 ```
-
---
-
-<!--
-TODO:
-
-* std lib examples: defining tuple impls recursively
-* hdf5-rs examples
- -->
