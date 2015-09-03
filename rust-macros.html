@@ -1,0 +1,969 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>Macros in Rust</title>
+  <style type="text/css">
+    body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #222;
+  background-color: #f7f7f7;
+  font-size: 100%;
+}
+
+.slide {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0; right: 0;
+}
+
+.slide-content {
+  width: 800px;
+  height: 600px;
+  overflow: hidden;
+  margin: 80px auto 0 auto;
+  padding: 30px;
+
+  font-weight: 200;
+  font-size: 200%;
+  line-height: 1.375;
+}
+
+.controls {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+}
+
+.arrow {
+  width: 0; height: 0;
+  border: 30px solid #333;
+  float: left;
+  margin-right: 30px;
+
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.prev {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+
+  border-left-width: 0;
+  border-right-width: 50px;
+}
+
+.next {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+
+  border-left-width: 50px;
+  border-right-width: 0;
+}
+
+.prev:hover {
+  border-right-color: #888;
+  cursor: pointer;
+}
+
+.next:hover {
+  border-left-color: #888;
+  cursor: pointer;
+}
+
+h1 {
+  font-size: 300%;
+  line-height: 1.2;
+  text-align: center;
+  margin: 170px 0 0;
+}
+
+h2 {
+  font-size: 100%;
+  line-height: 1.2;
+  margin: 5px 0;
+  text-align: center;
+  font-weight: 200;
+}
+
+h3 {
+  font-size: 140%;
+  line-height: 1.2;
+  border-bottom: 1px solid #aaa;
+  margin: 0;
+  padding-bottom: 15px;
+}
+
+ul {
+  padding: 20px 0 0 60px;
+  font-weight: 200;
+  line-height: 1.375;
+}
+
+.author h1 {
+  font-size: 170%;
+  font-weight: 200;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.author h3 {
+  font-weight: 100;
+  text-align: center;
+  font-size: 95%;
+  border: none;
+}
+
+a {
+  text-decoration: none;
+  color: #44a4dd;
+}
+
+a:hover {
+  color: #66b5ff;
+}
+
+pre {
+  font-size: 60%;
+  line-height: 1.3;
+}
+
+.progress {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 3px;
+  background-color: #b4b4b4;
+
+  -webkit-transition: width 0.05s ease-out;
+  -moz-transition: width 0.05s ease-out;
+  -o-transition: width 0.05s ease-out;
+  transition: width 0.05s ease-out;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 850px) {
+
+  body {
+    font-size: 70%;
+  }
+
+  .slide-content {
+    width: auto;
+  }
+
+  img {
+    width: 100%;
+  }
+
+  h1 {
+    margin-top: 120px;
+  }
+
+  .prev, .prev:hover {
+    border-right-color: rgba(135, 135, 135, 0.5);
+  }
+
+  .next, .next:hover {
+    border-left-color: rgba(135, 135, 135, 0.5);
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 50%;
+    overflow: hidden;
+  }
+
+  .slide-content {
+    padding: 10px;
+    margin-top: 10px;
+    height: 340px;
+  }
+
+  h1 {
+    margin-top: 50px;
+  }
+
+  ul {
+    padding-left: 25px;
+  }
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact;
+  }
+
+  @page {
+    size: letter;
+  }
+
+  .hidden {
+    display: inline;
+  }
+
+  html {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  body {
+    margin: 0 auto !important;
+    border: 0;
+    padding: 0;
+    float: none !important;
+    overflow: visible;
+    background: none !important;
+    font-size: 52%;
+  }
+
+  .progress, .controls {
+    display: none;
+  }
+
+  .slide {
+    position: static;
+  }
+
+  .slide-content {
+    border: 1px solid #222;
+    margin-top: 0;
+    margin-bottom: 40px;
+    height: 3.5in;
+    overflow: visible;
+  }
+
+  .slide:nth-child(even) {
+    /* 2 slides per page */
+    page-break-before: always;
+  }
+}
+
+/*
+github.com style (c) Vasily Polovnyov <vast@whiteants.net>
+*/
+
+code, pre {
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  overflow: auto;
+  padding: 6px 10px;
+}
+
+code {
+  padding: 0 5px;
+}
+
+pre>code {
+  margin: 0; padding: 0;
+  border: none;
+  background: transparent;
+}
+
+pre .comment,
+pre .template_comment,
+pre .diff .header,
+pre .javadoc {
+  color: #998;
+  font-style: italic
+}
+
+pre .keyword,
+pre .css .rule .keyword,
+pre .winutils,
+pre .javascript .title,
+pre .nginx .title,
+pre .subst,
+pre .request,
+pre .status {
+  color: #333;
+  font-weight: bold
+}
+
+pre .number,
+pre .hexcolor,
+pre .ruby .constant {
+  color: #099;
+}
+
+pre .string,
+pre .tag .value,
+pre .phpdoc,
+pre .tex .formula {
+  color: #d14
+}
+
+pre .title,
+pre .id {
+  color: #900;
+  font-weight: bold
+}
+
+pre .javascript .title,
+pre .lisp .title,
+pre .clojure .title,
+pre .subst {
+  font-weight: normal
+}
+
+pre .class .title,
+pre .haskell .type,
+pre .vhdl .literal,
+pre .tex .command {
+  color: #458;
+  font-weight: bold
+}
+
+pre .tag,
+pre .tag .title,
+pre .rules .property,
+pre .django .tag .keyword {
+  color: #000080;
+  font-weight: normal
+}
+
+pre .attribute,
+pre .variable,
+pre .lisp .body {
+  color: #008080
+}
+
+pre .regexp {
+  color: #009926
+}
+
+pre .class {
+  color: #458;
+  font-weight: bold
+}
+
+pre .symbol,
+pre .ruby .symbol .string,
+pre .lisp .keyword,
+pre .tex .special,
+pre .prompt {
+  color: #990073
+}
+
+pre .built_in,
+pre .lisp .title,
+pre .clojure .built_in {
+  color: #0086b3
+}
+
+pre .preprocessor,
+pre .pi,
+pre .doctype,
+pre .shebang,
+pre .cdata {
+  color: #999;
+  font-weight: bold
+}
+
+pre .deletion {
+  background: #fdd
+}
+
+pre .addition {
+  background: #dfd
+}
+
+pre .diff .change {
+  background: #0086b3
+}
+
+pre .chunk {
+  color: #aaa
+}
+
+pre {
+    font-size: 80%;
+}
+
+.slide-content {
+    width: 1024px;
+    height: 960px;
+}
+
+
+  </style>
+</head>
+<body>
+    <div class="progress">
+    <div class="progress-bar"></div>
+  </div>
+
+  <div class="slide" id="slide-1">
+    <section class="slide-content"><h1 id="macros-in-rust">Macros in Rust</h1>
+<h2 id="rust-meetup-dublin-sep-3-2015-ivan-smirnov">Rust Meetup, Dublin / Sep 3, 2015 / Ivan Smirnov</h2>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-2">
+    <section class="slide-content"><h3 id="things-to-commit-before-leaving-your-job">Things to commit before leaving your job</h3>
+<pre><code class="lang-cpp"><span class="preprocessor">#define struct union</span>
+<span class="preprocessor">#define if while</span>
+<span class="preprocessor">#define else</span>
+<span class="preprocessor">#define break</span>
+<span class="preprocessor">#define double float</span>
+<span class="preprocessor">#define volatile</span>
+<span class="preprocessor">#define false true</span>
+<span class="preprocessor">#define sizeof(x) (sizeof(x) - 1)</span>
+<span class="preprocessor">#define if(x) if ((x) &amp;&amp; ((__LINE__ &amp; 15) != 0))</span></code></pre>
+<p><img src="assets/things-to-commit.jpg" alt=""></p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-3">
+    <section class="slide-content"><h3 id="macros-in-rust-an-overview">Macros in Rust: an overview</h3>
+<ul>
+<li>Pattern-matching macro system based on <em>Macro-by-Example</em><sup>1</sup></li>
+<li><em>Macro hygiene</em>: macro expansion is guaranteed not to cause accidental capture
+of identifiers</li>
+<li>Macro expansion has its own compiler phase; it is not a full pass over
+the source code</li>
+<li>Macro invocations can only appear where they are explicitly supported:
+items, methods, statements, expressions, patterns</li>
+<li>There are limitations: e.g., a macro cannot generate identifier for a
+function declaration (there&#39;s <code>concat_idents!</code> but it&#39;s behind a feature gate)</li>
+<li>The outermost macro invocation is expanded first</li>
+</ul>
+<p><small><sup>1</sup> E. Kohlbecker, M. Wand (1986). Macro-by-Example: Deriving Syntactic Transformations from their Specifications (1986).
+<a href="https://www.cs.indiana.edu/ftp/techreports/TR206.pdf">https://www.cs.indiana.edu/ftp/techreports/TR206.pdf</a></small></p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-4">
+    <section class="slide-content"><h3 id="macro-hygiene-in-action">Macro hygiene in action</h3>
+<pre><code class="lang-rust">macro_rules! print_x {
+    () =&gt; { println!(<span class="string">"{}"</span>, x) }
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    <span class="keyword">let</span> x = <span class="number">1</span>;
+    print_x!();
+}</code></pre>
+<pre><code>test.rs:2:28: 2:29 error: unresolved name `x`
+test.rs:2     () =&gt; { println!(&quot;{}&quot;, x) }</code></pre>
+<p><img src="assets/macro-hygiene.jpg" alt=""></p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-5">
+    <section class="slide-content"><h3 id="hello-world-">Hello, world!</h3>
+<p>The very first example in the official Rust book actually contains a macro:</p>
+<pre><code class="lang-rust"><span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    println!(<span class="string">"{}"</span>, <span class="string">"Hello, world!"</span>);
+}</code></pre>
+<p>Here, <code>println!</code> is not a function – it&#39;s a macro that gets expanded at <em>compile time</em>
+and is defined in the standard library like so:</p>
+<pre><code class="lang-rust">macro_rules! println {
+    ($fmt:expr) =&gt; (print!(concat!($fmt, <span class="string">"\n"</span>)));
+    ($fmt:expr, $($arg:tt)*) =&gt; (print!(concat!($fmt, <span class="string">"\n"</span>), $($arg)*));
+}</code></pre>
+<p>which expands to:</p>
+<pre><code class="lang-rust"><span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    ::std::io::<span class="number">_</span>print(format_args!(<span class="string">"{}"</span>, <span class="string">"Hello, world!"</span>));
+}</code></pre>
+<p>Format strings are type-safe and <em>statically</em> verified:</p>
+<pre><code class="lang-rust">println!(<span class="string">"{} {} {}"</span>, <span class="number">2</span>, <span class="string">"foo"</span>); <span class="comment">// compile-time error, missing argument</span></code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-6">
+    <section class="slide-content"><h3 id="using-macros">Using macros</h3>
+<p>Macro invocation looks a lot like a function call, but:</p>
+<ul>
+<li>macro name must be followed by an exclamation mark, <code>!</code></li>
+<li>parentheses, square brackets and curly braces are ok: <code>()</code>, <code>[]</code>, <code>{}</code></li>
+<li>content inside the parentheses doesn&#39;t have to be valid Rust</li>
+<li>... as long as the parentheses are balanced (parsed into token tree)</li>
+</ul>
+<p>Either way works:</p>
+<pre><code class="lang-rust">println!(<span class="string">"{}"</span>, <span class="string">"foo"</span>);
+println![<span class="string">"{}"</span>, <span class="string">"foo"</span>];
+println!{<span class="string">"{}"</span>, <span class="string">"foo"</span>};</code></pre>
+<p>An example where it&#39;s common to use square brackets:</p>
+<pre><code class="lang-rust"><span class="keyword">let</span> v = <span class="keyword">vec</span>![<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];</code></pre>
+<p>which expands to:</p>
+<pre><code class="lang-rust"><span class="keyword">let</span> v = &lt;[<span class="number">_</span>]&gt;::into_vec(Box::new([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]));</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-7">
+    <section class="slide-content"><h3 id="defining-macros">Defining macros</h3>
+<p>A simplest macro definition: macro with no arguments.</p>
+<pre><code class="lang-rust">macro_rules! say_hello {
+    () =&gt; (
+        println!(<span class="string">"Hello"</span>);
+    )
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    say_hello!();
+}</code></pre>
+<p>Can also use square brackets/braces and drop the semicolon:</p>
+<pre><code class="lang-rust">macro_rules! say_hello {
+    [] =&gt; {
+        println!(<span class="string">"Hello"</span>)
+    }
+}</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-8">
+    <section class="slide-content"><h3 id="passing-arguments-to-a-macro">Passing arguments to a macro</h3>
+<pre><code class="lang-rust">macro_rules! say {
+    ($what:expr) =&gt; (
+        println!(<span class="string">"{}"</span>, $what)
+    )
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    say!(<span class="string">"Hello"</span>);
+    say!(<span class="number">1</span> + <span class="number">2</span>);
+}</code></pre>
+<p>In this macro, <code>expr</code> is a <em>designator</em>.</p>
+<p>There&#39;s a whole bunch of other designators, most commonly used ones being
+<code>ty</code>, <code>ident</code> and <code>block</code>.</p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-9">
+    <section class="slide-content"><h3 id="more-designators-and-stringify-">More designators and <code>stringify!</code></h3>
+<pre><code class="lang-rust">macro_rules! define {
+    ($name:ident[$ty:ty]($lhs:ident, $rhs:ident) =&gt; $body:expr) =&gt; (
+        <span class="function"><span class="keyword">fn</span> $<span class="title">name</span>(</span>$lhs: $ty, $rhs:$ty) -&gt; $ty {
+            <span class="keyword">let</span> result = $body;
+            println!(<span class="string">"Given {} = {}: {} and {} = {}: {}"</span>,
+                     stringify!($lhs), $lhs, stringify!($ty),
+                     stringify!($rhs), $rhs, stringify!($ty));
+            println!(<span class="string">"{}({}, {}) = {} = {}"</span>,
+                     stringify!($name), stringify!($lhs), stringify!($rhs),
+                     stringify!($body), result);
+            result
+        }
+    )
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    define!(add_double[<span class="keyword">i32</span>](x, y) =&gt; <span class="number">2</span> * x + <span class="number">2</span> * y);
+    println!(<span class="string">"Answer: {}"</span>, add(<span class="number">5</span>, <span class="number">16</span>));
+}</code></pre>
+<p>The output:</p>
+<pre><code>Given x = 5: i32 and y = 32: i32
+add_double(x, y) = 2 * x + y = 42
+Answer: 42</code></pre>
+<p><code>stringify!</code> captures macro arguments as literal strings, exactly as they are passed
+at the call site, and is very useful for debugging.</p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-10">
+    <section class="slide-content"><h3 id="blocks-are-expressions-too">Blocks are expressions too</h3>
+<p>Whenever an <code>expr</code> designator is expected, you can always pass a block:</p>
+<pre><code class="lang-rust"><span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    define!(add[<span class="keyword">f64</span>](a, b) =&gt; {
+        <span class="keyword">let</span> c = a * b;
+        a + b + c
+    });
+}</code></pre>
+<p>However, <code>block</code> designator doesn&#39;t allow non-block expressions:</p>
+<pre><code class="lang-rust">macro_rules! block_macro {
+    ($<span class="keyword">block</span>:<span class="keyword">block</span>) =&gt; { $<span class="keyword">block</span> }
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    <span class="keyword">let</span> (x, y) = (<span class="number">1</span>, <span class="number">2</span>);
+
+<span class="comment">/*
+    block_macro!(x + y);
+    // test.rs:7:10: 7:11 error: expected `{`, found `x`
+    // test.rs:7     foo!(x + y);
+*/</span>
+
+    println!(<span class="string">"{}"</span>, block_macro!({ x + y }));
+}</code></pre>
+<pre><code>3</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-11">
+    <section class="slide-content"><h3 id="macro-rule-overloads">Macro rule overloads</h3>
+<p>Let&#39;s modify <code>define!</code> macro so it can define unary operators as well:</p>
+<pre><code class="lang-rust">macro_rules! define {
+    ($name:ident[$ty:ty]($lhs:ident, $rhs:ident) =&gt; $body:expr) =&gt; (
+        <span class="function"><span class="keyword">fn</span> $<span class="title">name</span>(</span>$lhs: $ty, $rhs:$ty) -&gt; $ty { $body }
+    );
+
+    ($name:ident[$ty:ty]($arg:ident) =&gt; $body:expr) =&gt; (
+        <span class="function"><span class="keyword">fn</span> $<span class="title">name</span>(</span>$arg: $ty) -&gt; $ty { $body }
+    )
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    define!(add[<span class="keyword">i32</span>](x, y) =&gt; x + y);
+    define!(neg[<span class="keyword">i32</span>](x) =&gt; -x);
+    println!(<span class="string">"{}, {}"</span>, add(<span class="number">3</span>, <span class="number">4</span>), neg(<span class="number">5</span>));
+}</code></pre>
+<pre><code>7, -5</code></pre>
+<p>Note: each arm must be separated with a semicolon.</p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-12">
+    <section class="slide-content"><h3 id="resolving-multiple-matches">Resolving multiple matches</h3>
+<p>Macro rules are matched in the order specified until a match is found.</p>
+<pre><code class="lang-rust">macro_rules! multi_arm {
+    ($x:expr) =&gt; (
+        println!(<span class="string">"arm 1"</span>)
+    );
+    ($x:expr) =&gt; (
+        println!(<span class="string">"arm 2"</span>)
+    );
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    multi_arm!(<span class="number">1</span>);
+}</code></pre>
+<p>Although both arms can be matched, only the first one is evaluated, and
+so the output is:</p>
+<pre><code>arm 1</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-13">
+    <section class="slide-content"><h3 id="repeating-arguments">Repeating arguments</h3>
+<p>Can <code>define!</code> generate functions with any number of parameters?</p>
+<pre><code class="lang-rust">macro_rules! define {
+    ($name:ident[$ty:ty]($($arg:ident);*) =&gt; $body:expr) =&gt; (
+        <span class="function"><span class="keyword">fn</span> $<span class="title">name</span>(</span>$($arg: $ty),*) -&gt; $ty { $body }
+    );
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    define!(add[<span class="keyword">i32</span>](x; y) =&gt; x + y);
+    define!(neg[<span class="keyword">i32</span>](x) =&gt; -x);
+    define!(zero[<span class="keyword">i32</span>]() =&gt; <span class="number">0</span>);
+    define!(volume[<span class="keyword">i32</span>](w; d; h) =&gt; w * d * h);
+    println!(<span class="string">"{}, {}, {}, {}"</span>, add(<span class="number">3</span>, <span class="number">4</span>), neg(<span class="number">5</span>), zero(), volume(<span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>));
+}</code></pre>
+<p>Note that the list of function arguments is now semicolon-separated.</p>
+<p>Defining repeated arguments:</p>
+<ul>
+<li><code>$(...),*</code> matches the argument zero or more times</li>
+<li><code>$(...),+</code> matches the argument one or more times</li>
+</ul>
+</section>
+  </div>
+  <div class="slide hidden -" id="slide-14">
+    <section class="slide-content"><h3 id="recursive-macros">Recursive macros</h3>
+<p>Let&#39;s write a macro that counts the expression arguments passed to it
+(statically, so that it&#39;s result is a compile-time known const).</p>
+<pre><code class="lang-rust">macro_rules! count_exprs {
+    () =&gt; { <span class="number">0</span> };
+    ($e:expr) =&gt; { <span class="number">1</span> };
+    ($head:expr, $($tail:expr),+) =&gt; { <span class="number">1</span> + count_exprs!($($tail),*) };
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    <span class="keyword">const</span> COUNT: usize = count_exprs!(<span class="number">1</span> + <span class="number">2</span>, <span class="string">"foo"</span>, <span class="number">42</span>);
+    println!(<span class="string">"{}"</span>, COUNT);
+}</code></pre>
+<pre><code>3</code></pre>
+<p>Macro call in this example would get expanded to</p>
+<pre><code class="lang-rust"><span class="keyword">const</span> COUNT: usize = <span class="number">1</span> + <span class="number">1</span> + <span class="number">1</span>;</code></pre>
+<p>which the compiler will then fold into just</p>
+<pre><code class="lang-rust"><span class="keyword">const</span> COUNT: usize = <span class="number">3</span>;</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-15">
+    <section class="slide-content"><h3 id="macro-related-attributes">Macro-related attributes</h3>
+<p><code>#[macro_use]</code> attribute allows loading macros from other crates:</p>
+<pre><code class="lang-rust"><span class="preprocessor">#[macro_use]</span>
+extern crate foo;</code></pre>
+<p>Only import a limited set of macros:</p>
+<pre><code class="lang-rust"><span class="preprocessor">#[macro_use(foo, bar)]</span>
+extern crate baz;</code></pre>
+<p>This can be also used directly on a module:</p>
+<pre><code class="lang-rust"><span class="preprocessor">#[macro_use]</span>
+<span class="keyword">mod</span> {
+    <span class="comment">// macros defined here will be visible in module's parent</span>
+}</code></pre>
+<p>Export a macro for cross-crate usage:</p>
+<pre><code class="lang-rust"><span class="preprocessor">#[macro_export]</span>
+macro_rules! foo {
+    <span class="comment">// this macro definition will be available to other crates, and will</span>
+    <span class="comment">// be imported automatically by #[macro_use] without arguments</span>
+}</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-16">
+    <section class="slide-content"><h3 id="the-order-matters">The order matters</h3>
+<p>If module <code>foo</code> uses a macro from module <code>macros</code>, then the following wouldn&#39;t work:</p>
+<pre><code class="lang-rust"><span class="comment">// lib.rs</span>
+
+<span class="keyword">mod</span> foo;
+<span class="preprocessor">#[macro_use]</span>
+<span class="keyword">mod</span> macros;</code></pre>
+<p>but this would:</p>
+<pre><code class="lang-rust"><span class="comment">// lib.rs</span>
+
+<span class="preprocessor">#[macro_use]</span>
+<span class="keyword">mod</span> macros;
+<span class="keyword">mod</span> foo;</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-17">
+    <section class="slide-content"><h3 id="-crate-metavar"><code>$crate</code> metavar</h3>
+<p>A macro can reference various functions in the crate directly:</p>
+<pre><code class="lang-rust"><span class="comment">// crate foo</span>
+
+<span class="preprocessor">#[macro_export]</span>
+macro_rules! some_macro {
+    () =&gt; { ::foo::some_module::some_function() }
+}</code></pre>
+<p>But what if this macro was imported in another crate like so?</p>
+<pre><code class="lang-rust"><span class="preprocessor">#[macro_use]</span> extern crate <span class="string">"foo"</span> <span class="keyword">as</span> bar;</code></pre>
+<p><code>$crate</code> metavar is the recommended way of handling this:</p>
+<pre><code class="lang-rust"><span class="preprocessor">#[macro_export]</span>
+macro_rules! some_macro {
+    () =&gt; { $crate::some_module::some_function() }
+}</code></pre>
+<p>Note: macro-importing <code>extern crate</code> can only appear at the crate root.</p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-18">
+    <section class="slide-content"><h3 id="standard-library-try-">Standard library: <code>try!</code></h3>
+<pre><code class="lang-rust">macro_rules! try {
+    ($expr:expr) =&gt; (match $expr {
+        $crate::result::Result::Ok(val) =&gt; val,
+        $crate::result::Result::Err(err) =&gt; {
+            return $crate::result::Result::Err($crate::convert::From::from(err))
+        }
+    })
+}</code></pre>
+<p>Typical error-handling logic:</p>
+<pre><code class="lang-rust"><span class="keyword">let</span> result = match inner() {
+    Err(err) =&gt; return Err(From::from(err)),
+    Ok(val) =&gt; match outer(val) {
+        Err(err) =&gt; return Err(From::from(err)),
+        Ok(val) =&gt; {
+            <span class="comment">// ...</span>
+        }
+    }
+};
+Ok(process(result));</code></pre>
+<p>With <code>try!</code> macro this becomes just</p>
+<pre><code class="lang-rust"><span class="keyword">let</span> result = try!(outer(try!(inner()));
+Ok(process(result));</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-19">
+    <section class="slide-content"><h3 id="standard-library-inspection-macros">Standard library: inspection macros</h3>
+<p>It is possible to get the current module path, file, line number and column number
+via standard library macros:</p>
+<pre><code class="lang-rust">macro_rules! inspect {
+    () =&gt; {
+        println!(<span class="string">"{} in {}:{}:{}"</span>, module_path!(), file!(), line!(), column!())
+    }
+}
+
+pub <span class="keyword">mod</span> mod1 {
+    pub <span class="keyword">mod</span> mod2 {
+        pub <span class="function"><span class="keyword">fn</span> <span class="title">foo</span>(</span>) {
+            inspect!();
+        }
+    }
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    mod1::mod2::foo();
+}</code></pre>
+<p>The output is:</p>
+<pre><code>test::mod1::mod2 in test.rs:10:12</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-20">
+    <section class="slide-content"><!--
+TODO:
+
+* examples: lazy_static! etc
+* std lib examples: defining tuple impls recursively
+* hdf5-rs examples
+ --></section>
+  </div>
+  <div class="slide hidden" id="slide-21">
+    <section class="slide-content"><div class="author">
+  <h1 class="name">Ivan Smirnov</h1>
+    <h3 class="twitter">
+      <a href="http://twitter.com/@aldanor">@aldanor</a>
+    </h3>
+    <h3 class="url">
+      <a href="http://ivansmirnov.io">http://ivansmirnov.io</a>
+    </h3>
+</div>
+</section>
+  </div>
+
+  <div class="controls">
+    <div class="arrow prev"></div>
+    <div class="arrow next"></div>
+  </div>
+
+
+  <script type="text/javascript">
+    /**
+ * Returns the current page number of the presentation.
+ */
+function currentPosition() {
+  return parseInt(document.querySelector('.slide:not(.hidden)').id.slice(6));
+}
+
+
+/**
+ * Navigates forward n pages
+ * If n is negative, we will navigate in reverse
+ */
+function navigate(n) {
+  var position = currentPosition();
+  var numSlides = document.getElementsByClassName('slide').length;
+
+  /* Positions are 1-indexed, so we need to add and subtract 1 */
+  var nextPosition = (position - 1 + n) % numSlides + 1;
+
+  /* Normalize nextPosition in-case of a negative modulo result */
+  nextPosition = (nextPosition - 1 + numSlides) % numSlides + 1;
+
+  document.getElementById('slide-' + position).classList.add('hidden');
+  document.getElementById('slide-' + nextPosition).classList.remove('hidden');
+
+  updateProgress();
+  updateURL();
+  updateTabIndex();
+}
+
+
+/**
+ * Updates the current URL to include a hashtag of the current page number.
+ */
+function updateURL() {
+  window.history.replaceState({} , null, '#' + currentPosition());
+}
+
+
+/**
+ * Sets the progress indicator.
+ */
+function updateProgress() {
+  var progressBar = document.querySelector('.progress-bar');
+
+  if (progressBar !== null) {
+    var numSlides = document.getElementsByClassName('slide').length;
+    var position = currentPosition() - 1;
+    var percent = (numSlides === 1) ? 100 : 100 * position / (numSlides - 1);
+    progressBar.style.width = percent.toString() + '%';
+  }
+}
+
+
+/**
+ * Removes tabindex property from all links on the current slide, sets
+ * tabindex = -1 for all links on other slides. Prevents slides from appearing
+ * out of control.
+ */
+function updateTabIndex() {
+  var allLinks = document.querySelectorAll('.slide a');
+  var position = currentPosition();
+  var currentPageLinks = document.getElementById('slide-' + position).querySelectorAll('a');
+  var i;
+
+  for (i = 0; i < allLinks.length; i++) {
+    allLinks[i].setAttribute('tabindex', -1);
+  }
+
+  for (i = 0; i < currentPageLinks.length; i++) {
+    currentPageLinks[i].removeAttribute('tabindex');
+  }
+}
+
+/**
+ * Determines whether or not we are currently in full screen mode
+ */
+function isFullScreen() {
+  return document.fullscreenElement ||
+         document.mozFullScreenElement ||
+         document.webkitFullscreenElement ||
+         document.msFullscreenElement;
+}
+
+/**
+ * Toggle fullScreen mode on document element.
+ * Works on chrome (>= 15), firefox (>= 9), ie (>= 11), opera(>= 12.1), safari (>= 5).
+ */
+function toggleFullScreen() {
+  /* Convenient renames */
+  var docElem = document.documentElement;
+  var doc = document;
+
+  docElem.requestFullscreen =
+      docElem.requestFullscreen ||
+      docElem.msRequestFullscreen ||
+      docElem.mozRequestFullScreen ||
+      docElem.webkitRequestFullscreen.bind(docElem, Element.ALLOW_KEYBOARD_INPUT);
+
+  doc.exitFullscreen =
+      doc.exitFullscreen ||
+      doc.msExitFullscreen ||
+      doc.mozCancelFullScreen ||
+      doc.webkitExitFullscreen;
+
+  isFullScreen() ? doc.exitFullscreen() : docElem.requestFullscreen();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Update the tabindex to prevent weird slide transitioning
+  updateTabIndex();
+
+  // If the location hash specifies a page number, go to it.
+  var page = window.location.hash.slice(1);
+  if (page) {
+    navigate(parseInt(page) - 1);
+  }
+
+  document.onkeydown = function (e) {
+    var kc = e.keyCode;
+
+    // left, down, H, J, backspace, PgUp - BACK
+    // up, right, K, L, space, PgDn - FORWARD
+    // enter - FULLSCREEN
+    if (kc === 37 || kc === 40 || kc === 8 || kc === 72 || kc === 74 || kc === 33) {
+      navigate(-1);
+    } else if (kc === 38 || kc === 39 || kc === 32 || kc === 75 || kc === 76 || kc === 34) {
+      navigate(1);
+    } else if (kc === 13) {
+      toggleFullScreen();
+    }
+  };
+
+  if (document.querySelector('.next') && document.querySelector('.prev')) {
+    document.querySelector('.next').onclick = function (e) {
+      e.preventDefault();
+      navigate(1);
+    };
+
+    document.querySelector('.prev').onclick = function (e) {
+      e.preventDefault();
+      navigate(-1);
+    };
+  }
+});
+
+
+  </script>
+</body>
+</html>

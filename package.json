@@ -1,0 +1,14 @@
+{
+  "name": "rust-macros",
+  "version": "0.1.0",
+  "description": "Macros in Rust talk",
+  "scripts": {
+    "build": "./node_modules/.bin/cleaver rust-macros.md"
+  },
+  "devDependencies": {
+    "cleaver": "^0.7.4"
+  },
+  "author": "Ivan Smirnov",
+  "email": "i.s.smirnov@gmail.com",
+  "license": "MIT"
+}
