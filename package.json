@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Macros in Rust talk",
   "scripts": {
-    "build": "./node_modules/.bin/cleaver rust-macros.md"
+    "build": "./node_modules/.bin/cleaver rust-macros.md",
+    "watch": "./node_modules/.bin/cleaver --debug watch rust-macros.md"
   },
   "devDependencies": {
     "cleaver": "^0.7.4"
