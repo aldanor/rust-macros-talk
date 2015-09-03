@@ -552,10 +552,120 @@ test::mod1::mod2 in test.rs:10:12
 
 --
 
+### Initializing statics: `lazy_static!` macro
+
+A useful macro for defining lazy evaluated static variables:
+
+```rust
+#[macro_use]
+extern crate lazy_static;
+
+use std::collections::HashMap;
+```
+
+```rust
+lazy_static! {
+    static ref HASHMAP: HashMap<u32, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(0, "foo");
+        m.insert(1, "bar");
+        m.insert(2, "baz");
+        m
+    };
+    static ref COUNT: usize = HASHMAP.len();
+    static ref NUMBER: u32 = times_two(21);
+}
+```
+
+```rust
+fn times_two(n: u32) -> u32 { n * 2 }
+
+fn main() {
+    println!("The map has {} entries.", *COUNT);
+    println!("The entry for `0` is \"{}\".", HASHMAP.get(&0).unwrap());
+    println!("A expensive calculation on a static results in: {}.", *NUMBER);
+}
+```
+
+<small>Source: http://github.com/Kimundi/lazy-static</small>
+
+--
+
+### `hdf5-rs`: generating impls for tuples
+
+```rust
+pub trait Dimension {
+    fn ndim(&self) -> usize;
+    fn dims(&self) -> Vec<Ix>;
+}
+
+macro_rules! impl_tuple {
+    () => (
+        impl Dimension for () {
+            fn ndim(&self) -> usize { 0 }
+            fn dims(&self) -> Vec<Ix> { vec![] }
+        }
+    );
+
+    ($head:ty, $($tail:ty,)*) => (
+        impl Dimension for ($head, $($tail,)*) {
+            fn ndim(&self) -> usize {
+                count_idents!($head, $($tail,)*)
+            }
+
+            fn dims(&self) -> Vec<Ix> {
+                unsafe {
+                    slice::from_raw_parts(self as *const _ as *const Ix, self.ndim())
+                }.iter().cloned().collect()
+            }
+        }
+        impl_tuple! { $($tail,)* }
+    )
+}
+
+impl_tuple! { Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, }
+```
+
+--
+
+### `hdf5-rs`: regex assert
+
+```rust
+/// Panics if `$expr` is not an Err(err) with err.description() matching regexp `$err`.
+macro_rules! assert_err {
+    ($expr:expr, $err:expr) => {
+        match &($expr) {
+            &Ok(_) => {
+                panic!("assertion failed: not an error in `{}`", stringify!($expr));
+            }
+            &Err(ref value) => {
+                use regex::Regex;
+                use std::error::Error as BaseError;
+                let re = Regex::new($err).unwrap();
+                let desc = value.description().to_string();
+                if !re.is_match(desc.as_ref()) {
+                    panic!(
+                        "assertion failed: \"{}\" doesn't match \"{}\" in `{}`",
+                        desc, re, stringify!($expr)
+                    );
+                }
+            }
+        }
+    }
+}
+```
+
+Usage in tests:
+
+```rust
+assert_err!(File::open(&path, "w-"), "unable to create file");
+```
+
+--
+
 <!--
 TODO:
 
-* examples: lazy_static! etc
 * std lib examples: defining tuple impls recursively
 * hdf5-rs examples
  -->

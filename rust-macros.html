@@ -789,15 +789,104 @@ pub <span class="keyword">mod</span> mod1 {
 </section>
   </div>
   <div class="slide hidden" id="slide-20">
+    <section class="slide-content"><h3 id="initializing-statics-lazy_static-macro">Initializing statics: <code>lazy_static!</code> macro</h3>
+<p>A useful macro for defining lazy evaluated static variables:</p>
+<pre><code class="lang-rust"><span class="preprocessor">#[macro_use]</span>
+extern crate lazy_static;
+
+<span class="keyword">use</span> std::collections::HashMap;</code></pre>
+<pre><code class="lang-rust">lazy_static! {
+    static ref HASHMAP: HashMap&lt;u32, &amp;'static str&gt; = {
+        let mut m = HashMap::new();
+        m.insert(0, "foo");
+        m.insert(1, "bar");
+        m.insert(2, "baz");
+        m
+    };
+    static ref COUNT: usize = HASHMAP.len();
+    static ref NUMBER: u32 = times_two(21);
+}</code></pre>
+<pre><code class="lang-rust"><span class="function"><span class="keyword">fn</span> <span class="title">times_two</span>(</span>n: <span class="keyword">u32</span>) -&gt; <span class="keyword">u32</span> { n * <span class="number">2</span> }
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    println!(<span class="string">"The map has {} entries."</span>, *COUNT);
+    println!(<span class="string">"The entry for `0` is \"{}\"."</span>, HASHMAP.get(&amp;<span class="number">0</span>).unwrap());
+    println!(<span class="string">"A expensive calculation on a static results in: {}."</span>, *NUMBER);
+}</code></pre>
+<p><small>Source: <a href="http://github.com/Kimundi/lazy-static">http://github.com/Kimundi/lazy-static</a></small></p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-21">
+    <section class="slide-content"><h3 id="-hdf5-rs-generating-impls-for-tuples"><code>hdf5-rs</code>: generating impls for tuples</h3>
+<pre><code class="lang-rust">pub trait Dimension {
+    <span class="function"><span class="keyword">fn</span> <span class="title">ndim</span>(</span>&amp;<span class="keyword">self</span>) -&gt; usize;
+    <span class="function"><span class="keyword">fn</span> <span class="title">dims</span>(</span>&amp;<span class="keyword">self</span>) -&gt; Vec&lt;Ix&gt;;
+}
+
+macro_rules! impl_tuple {
+    () =&gt; (
+        <span class="keyword">impl</span> Dimension <span class="keyword">for</span> () {
+            <span class="function"><span class="keyword">fn</span> <span class="title">ndim</span>(</span>&amp;<span class="keyword">self</span>) -&gt; usize { <span class="number">0</span> }
+            <span class="function"><span class="keyword">fn</span> <span class="title">dims</span>(</span>&amp;<span class="keyword">self</span>) -&gt; Vec&lt;Ix&gt; { <span class="keyword">vec</span>![] }
+        }
+    );
+
+    ($head:ty, $($tail:ty,)*) =&gt; (
+        <span class="keyword">impl</span> Dimension <span class="keyword">for</span> ($head, $($tail,)*) {
+            <span class="function"><span class="keyword">fn</span> <span class="title">ndim</span>(</span>&amp;<span class="keyword">self</span>) -&gt; usize {
+                count_idents!($head, $($tail,)*)
+            }
+
+            <span class="function"><span class="keyword">fn</span> <span class="title">dims</span>(</span>&amp;<span class="keyword">self</span>) -&gt; Vec&lt;Ix&gt; {
+                <span class="keyword">unsafe</span> {
+                    slice::from_raw_parts(<span class="keyword">self</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="number">_</span> <span class="keyword">as</span> *<span class="keyword">const</span> Ix, <span class="keyword">self</span>.ndim())
+                }.iter().cloned().collect()
+            }
+        }
+        impl_tuple! { $($tail,)* }
+    )
+}
+
+impl_tuple! { Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, Ix, }</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-22">
+    <section class="slide-content"><h3 id="-hdf5-rs-regex-assert"><code>hdf5-rs</code>: regex assert</h3>
+<pre><code class="lang-rust"><span class="comment">/// Panics if `$expr` is not an Err(err) with err.description() matching regexp `$err`.</span>
+macro_rules! assert_err {
+    ($expr:expr, $err:expr) =&gt; {
+        match &amp;($expr) {
+            &amp;Ok(<span class="number">_</span>) =&gt; {
+                panic!(<span class="string">"assertion failed: not an error in `{}`"</span>, stringify!($expr));
+            }
+            &amp;Err(ref value) =&gt; {
+                <span class="keyword">use</span> regex::Regex;
+                <span class="keyword">use</span> std::error::Error <span class="keyword">as</span> BaseError;
+                <span class="keyword">let</span> re = Regex::new($err).unwrap();
+                <span class="keyword">let</span> desc = value.description().to_string();
+                <span class="keyword">if</span> !re.is_match(desc.as_ref()) {
+                    panic!(
+                        <span class="string">"assertion failed: \"{}\" doesn't match \"{}\" in `{}`"</span>,
+                        desc, re, stringify!($expr)
+                    );
+                }
+            }
+        }
+    }
+}</code></pre>
+<p>Usage in tests:</p>
+<pre><code class="lang-rust">assert_err!(File::open(&amp;path, <span class="string">"w-"</span>), <span class="string">"unable to create file"</span>);</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-23">
     <section class="slide-content"><!--
 TODO:
 
-* examples: lazy_static! etc
 * std lib examples: defining tuple impls recursively
 * hdf5-rs examples
  --></section>
   </div>
-  <div class="slide hidden" id="slide-21">
+  <div class="slide hidden" id="slide-24">
     <section class="slide-content"><div class="author">
   <h1 class="name">Ivan Smirnov</h1>
     <h3 class="twitter">
