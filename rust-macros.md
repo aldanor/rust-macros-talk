@@ -660,3 +660,147 @@ Usage in tests:
 ```rust
 assert_err!(File::open(&path, "w-"), "unable to create file");
 ```
+
+--
+
+### `hdf5-rs`: synchronized calls + error detection (1)
+
+Facts:
+
+- HDF5 C API = thousands of functions
+- Most functions can fail
+- HDF5 has its own internal error stack
+- Can detect the *possibility* of error by the return code:
+  - if a function returns an unsigned int, then 0 means error
+  - if a function returns a signed int, then -1 means error
+- Most functions are not thread-safe, need to be synchronized
+
+Goal: implement macro(s) for calling HDF5 functions that would
+- yield a `Result`
+- automatically check the error codes
+- extract the error stack from HDF5 if needed
+- do everything in a thread-safe way
+
+--
+
+### `hdf5-rs`: synchronized calls + error detection (2)
+
+Before:
+
+```rust
+sync(|| {
+    let err = unsafe { H5Pset_userblock(fcpl_id, userblock) };
+    if err == -1 {
+        if let Some(err) = Error::query() { return Err(From::from(err)); }
+    }
+    // more non-thread-safe work
+    let file_id = unsafe { H5Fcreate(filename, flags, fcpl_id, fapl_id); }
+    if file_id == -1 {
+        if let Some(err) = Error::query() { return Err(From::from(err)); }
+    }
+    File::from_id(file_id)
+})
+```
+
+After:
+
+```rust
+h5lock!({
+    h5try!(H5Pset_userblock(fcpl_id, userblock));
+    // more non-thread-safe work
+    File::from_id(h5try!(H5Fcreate(filename, flags, fcpl_id, fapl_id)))
+})
+```
+
+--
+
+### `hdf5-rs`: synchronized calls + error detection (3)
+
+Automatic error checking:
+
+```rust
+use hdf5::error::{Error, Result};
+use num::{Integer, Zero, Bounded};
+
+pub fn h5check<T>(value: T) -> Result<T> where T: Integer + Zero + Bounded,
+{
+    let maybe_error = if T::min_value() < T::zero() {
+        value < T::zero()
+    } else {
+        value == T::zero()
+    };
+
+    match maybe_error {
+        false => Ok(value),
+        true  => match Error::query() {
+            None       => Ok(value),
+            Some(err)  => Err(From::from(err)),
+        },
+    }
+}
+```
+
+Here `Error::query()` is a thread-safe function that asks HDF5 to check if there's
+anything in its error stack (and extracts it if it's not empty).
+
+--
+
+### `hdf5-rs`: synchronized calls + error detection (4)
+
+Synchronization macro:
+
+```rust
+macro_rules! h5lock {
+    ($expr:expr) => ($crate::sync::sync(|| { unsafe { $expr } }))
+}
+```
+
+Here `hdf5::sync::sync` is a function that accepts an unsafe closure and protects
+its execution by a recursive (reentrant) static mutex.
+
+```rust
+fn f() {
+    h5lock!({
+        // do some sync work
+        g();
+        // do more sync work
+    })
+}
+
+fn g() {
+    h5lock!(/* do some sync work */)
+}
+
+fn main() {
+    f(g()); // no deadlock!
+}
+```
+
+--
+
+### `hdf5-rs`: synchronized calls + error detection (5)
+
+Macro that calls the function behind a mutex, checks for errors and gives you back a `Result`:
+
+```rust
+macro_rules! h5call {
+    ($expr:expr) => (
+        h5lock!($crate::error::h5check(unsafe { $expr }))
+    )
+}
+```
+
+An equivalent to `try!` in the standard library used to call HDF5 API:
+
+```
+macro_rules! h5try {
+    ($expr:expr) => (
+        match h5call!($expr) {
+            Ok(value) => value,
+            Err(err)  => {
+                return Err(From::from(err))
+            },
+        }
+    )
+}
+```

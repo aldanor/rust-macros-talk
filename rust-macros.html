@@ -879,6 +879,124 @@ macro_rules! assert_err {
 </section>
   </div>
   <div class="slide hidden" id="slide-23">
+    <section class="slide-content"><h3 id="-hdf5-rs-synchronized-calls-error-detection-1-"><code>hdf5-rs</code>: synchronized calls + error detection (1)</h3>
+<p>Facts:</p>
+<ul>
+<li>HDF5 C API = thousands of functions</li>
+<li>Most functions can fail</li>
+<li>HDF5 has its own internal error stack</li>
+<li>Can detect the <em>possibility</em> of error by the return code:<ul>
+<li>if a function returns an unsigned int, then 0 means error</li>
+<li>if a function returns a signed int, then -1 means error</li>
+</ul>
+</li>
+<li>Most functions are not thread-safe, need to be synchronized</li>
+</ul>
+<p>Goal: implement macro(s) for calling HDF5 functions that would</p>
+<ul>
+<li>yield a <code>Result</code></li>
+<li>automatically check the error codes</li>
+<li>extract the error stack from HDF5 if needed</li>
+<li>do everything in a thread-safe way</li>
+</ul>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-24">
+    <section class="slide-content"><h3 id="-hdf5-rs-synchronized-calls-error-detection-2-"><code>hdf5-rs</code>: synchronized calls + error detection (2)</h3>
+<p>Before:</p>
+<pre><code class="lang-rust">sync(|| {
+    <span class="keyword">let</span> err = <span class="keyword">unsafe</span> { H5Pset_userblock(fcpl_id, userblock) };
+    <span class="keyword">if</span> err == -<span class="number">1</span> {
+        <span class="keyword">if</span> <span class="keyword">let</span> Some(err) = Error::query() { return Err(From::from(err)); }
+    }
+    <span class="comment">// more non-thread-safe work</span>
+    <span class="keyword">let</span> file_id = <span class="keyword">unsafe</span> { H5Fcreate(filename, flags, fcpl_id, fapl_id); }
+    <span class="keyword">if</span> file_id == -<span class="number">1</span> {
+        <span class="keyword">if</span> <span class="keyword">let</span> Some(err) = Error::query() { return Err(From::from(err)); }
+    }
+    File::from_id(file_id)
+})</code></pre>
+<p>After:</p>
+<pre><code class="lang-rust">h5lock!({
+    h5try!(H5Pset_userblock(fcpl_id, userblock));
+    <span class="comment">// more non-thread-safe work</span>
+    File::from_id(h5try!(H5Fcreate(filename, flags, fcpl_id, fapl_id)))
+})</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-25">
+    <section class="slide-content"><h3 id="-hdf5-rs-synchronized-calls-error-detection-3-"><code>hdf5-rs</code>: synchronized calls + error detection (3)</h3>
+<p>Automatic error checking:</p>
+<pre><code class="lang-rust"><span class="keyword">use</span> hdf5::error::{Error, Result};
+<span class="keyword">use</span> num::{Integer, Zero, Bounded};
+
+pub <span class="function"><span class="keyword">fn</span> <span class="title">h5check</span>&lt;</span>T&gt;(value: T) -&gt; Result&lt;T&gt; where T: Integer + Zero + Bounded,
+{
+    <span class="keyword">let</span> maybe_error = <span class="keyword">if</span> T::min_value() &lt; T::zero() {
+        value &lt; T::zero()
+    } <span class="keyword">else</span> {
+        value == T::zero()
+    };
+
+    match maybe_error {
+        <span class="keyword">false</span> =&gt; Ok(value),
+        <span class="keyword">true</span>  =&gt; match Error::query() {
+            None       =&gt; Ok(value),
+            Some(err)  =&gt; Err(From::from(err)),
+        },
+    }
+}</code></pre>
+<p>Here <code>Error::query()</code> is a thread-safe function that asks HDF5 to check if there&#39;s
+anything in its error stack (and extracts it if it&#39;s not empty).</p>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-26">
+    <section class="slide-content"><h3 id="-hdf5-rs-synchronized-calls-error-detection-4-"><code>hdf5-rs</code>: synchronized calls + error detection (4)</h3>
+<p>Synchronization macro:</p>
+<pre><code class="lang-rust">macro_rules! h5lock {
+    ($expr:expr) =&gt; ($crate::sync::sync(|| { <span class="keyword">unsafe</span> { $expr } }))
+}</code></pre>
+<p>Here <code>hdf5::sync::sync</code> is a function that accepts an unsafe closure and protects
+its execution by a recursive (reentrant) static mutex.</p>
+<pre><code class="lang-rust"><span class="function"><span class="keyword">fn</span> <span class="title">f</span>(</span>) {
+    h5lock!({
+        <span class="comment">// do some sync work</span>
+        g();
+        <span class="comment">// do more sync work</span>
+    })
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">g</span>(</span>) {
+    h5lock!(<span class="comment">/* do some sync work */</span>)
+}
+
+<span class="function"><span class="keyword">fn</span> <span class="title">main</span>(</span>) {
+    f(g()); <span class="comment">// no deadlock!</span>
+}</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-27">
+    <section class="slide-content"><h3 id="-hdf5-rs-synchronized-calls-error-detection-5-"><code>hdf5-rs</code>: synchronized calls + error detection (5)</h3>
+<p>Macro that calls the function behind a mutex, checks for errors and gives you back a <code>Result</code>:</p>
+<pre><code class="lang-rust">macro_rules! h5call {
+    ($expr:expr) =&gt; (
+        h5lock!($crate::error::h5check(<span class="keyword">unsafe</span> { $expr }))
+    )
+}</code></pre>
+<p>An equivalent to <code>try!</code> in the standard library used to call HDF5 API:</p>
+<pre><code>macro_rules! h5try {
+    ($expr:expr) =&gt; (
+        match h5call!($expr) {
+            Ok(value) =&gt; value,
+            Err(err)  =&gt; {
+                return Err(From::from(err))
+            },
+        }
+    )
+}</code></pre>
+</section>
+  </div>
+  <div class="slide hidden" id="slide-28">
     <section class="slide-content"><div class="author">
   <h1 class="name">Ivan Smirnov</h1>
     <h3 class="twitter">
